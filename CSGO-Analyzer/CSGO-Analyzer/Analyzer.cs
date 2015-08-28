@@ -29,6 +29,7 @@ namespace CSGO_Analyzer
                     Dictionary<Player, int> killsThisRound = new Dictionary<Player, int>();
                     Dictionary<Player, int> entryFrags = new Dictionary<Player, int>();
                     Dictionary<Player, int> entryFragAttempts = new Dictionary<Player, int>();
+					Dictionary<Player, Rating> ratings = new Dictionary<Player, Rating>();
 
                     parser.MatchStarted += (sender, e) =>
                     {
@@ -39,11 +40,41 @@ namespace CSGO_Analyzer
                     {
                         if (!hasMatchStarted)
                             return;
+						
                         firstBlood = true;
                         round++;
+						killsThisRound.Clear();
+	                    foreach (var player in parser.PlayingParticipants)
+	                    {
+							if (!ratings.ContainsKey(player))
+							{
+								ratings.Add(player, new Rating());
+							}
+
+		                    ratings[player].roundsPlayed++;
+	                    }
                     };
 
-                    parser.PlayerKilled += (object sender, PlayerKilledEventArgs e) => {
+					parser.RoundEnd += (sender, e) =>
+					{
+						if (!hasMatchStarted)
+							return;
+
+						//firstBlood = true;
+						//round++;
+						//killsThisRound.Clear();
+						foreach (var player in killsThisRound.Keys)
+						{
+							if (!ratings.ContainsKey(player))
+							{
+								ratings.Add(player,new Rating());
+							}
+
+							ratings[player].multipleKillsDictionary[killsThisRound[player]]++;
+						}
+					};
+
+					parser.PlayerKilled += (object sender, PlayerKilledEventArgs e) => {
 
                     if (!hasMatchStarted)
                         return;
@@ -55,16 +86,23 @@ namespace CSGO_Analyzer
 
                             if(e.Killer.Team == e.Victim.Team)
                             {
-                                killsThisRound[e.Killer]--;
+                                //killsThisRound[e.Killer]--;
 
                             }
                             else
                             {
                                 killsThisRound[e.Killer]++;
                             }
-                            //Remember how many kills each player made this rounds
+							//Remember how many kills each player made this rounds
 
-                            if (firstBlood)
+							if (!ratings.ContainsKey(e.Victim))
+							{
+								ratings.Add(e.Victim, new Rating());
+							}
+
+							ratings[e.Victim].deaths++;
+
+							if (firstBlood)
                             {
                                 if (!entryFrags.ContainsKey(e.Killer))
                                     entryFrags[e.Killer] = 0;
@@ -88,26 +126,27 @@ namespace CSGO_Analyzer
 
                     parser.ParseToEnd();
 
-                    foreach(var player in killsThisRound.Keys)
-                    {
-                        if (!entryFragAttempts.ContainsKey(player))
-                        {
-                            entryFragAttempts[player] = 0;
-                        }
+                    //foreach(var player in killsThisRound.Keys)
+                    //{
+                    //    if (!entryFragAttempts.ContainsKey(player))
+                    //    {
+                    //        entryFragAttempts[player] = 0;
+                    //    }
 
-                        if (!entryFrags.ContainsKey(player))
-                        {
-                            entryFrags[player] = 0;
-                        }
+                    //    if (!entryFrags.ContainsKey(player))
+                    //    {
+                    //        entryFrags[player] = 0;
+                    //    }
 
-                        if (!killsThisRound.ContainsKey(player))
-                        {
-                            killsThisRound[player] = 0;
-                        }
+                    //    Console.WriteLine(player.Name + "(" + player.Team + ")" + " entry frags: " + entryFrags[player] + "/" + entryFragAttempts[player]);
+                    //}
 
-                        Console.WriteLine(player.Name + "(" + player.Team + ")" + " frags: " + killsThisRound[player] + "; entry frags: " + entryFrags[player] + "/" + entryFragAttempts[player]);
-                    }
-                }
+	                foreach (var player in ratings.Keys)
+	                {
+		                Console.WriteLine(player.Name + "(" + player.Team + ")" + " rating: " + ratings[player].getRating());
+	                }
+
+				}
             }
         }
     }
